@@ -99,7 +99,7 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
     print(f"Agent 2 ({agent_2_id}) average score: ", player_2_total/num_matches)
 
 if __name__ == "__main__":
-    os.environ["AZURE_OPENAI_ENDPOINT"] = "https://chatgpt-simulation.openai.azure.com/"
+    os.environ["AZURE_OPENAI_ENDPOINT"] = "<api_endpoint>"
     os.environ["AZURE_OPENAI_API_KEY"] = "<api_key>"
     fire.Fire(play_game)
 
