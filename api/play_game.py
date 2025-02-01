@@ -1,6 +1,7 @@
 import fire
 import api.util as util
 import random
+import os
 
 K = 32
 
@@ -11,9 +12,9 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
     agent_2_id = agent_2_class.agent_type_id
 
     save_results = True
-    if agent_1_id == agent_2_id:
-        print("You have passed the same class for both agents. No results will be saved.")
-        save_results = False
+    # if agent_1_id == agent_2_id and agent_1_class.mode == agent_2_class.mode:
+    #     print("You have passed the same class and mode for both agents. No results will be saved.")
+    #     save_results = False
 
     game_class = util.import_class(game_path)
 
@@ -79,6 +80,7 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
                 }
             )
             util.save_json(matches, "matches.json")
+            # util.save_json(matches, f"{game_class.id}.{agent_1_id}.{agent_2_id}.json")
             print("Saved match information")
 
             #agent_1_rating = agent_1_rating + K * (player_1_score - agent_1_expected_score)
@@ -97,4 +99,7 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
     print(f"Agent 2 ({agent_2_id}) average score: ", player_2_total/num_matches)
 
 if __name__ == "__main__":
+    os.environ["AZURE_OPENAI_ENDPOINT"] = "https://chatgpt-simulation.openai.azure.com/"
+    os.environ["AZURE_OPENAI_API_KEY"] = "<api_key>"
     fire.Fire(play_game)
+

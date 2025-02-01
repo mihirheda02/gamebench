@@ -1,5 +1,9 @@
 fire
 Pillow
 openai
+matplotlib
 santorinai
 colorama
+choix
+seaborn
+jinja2

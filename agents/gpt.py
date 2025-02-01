@@ -10,6 +10,7 @@ from PIL import Image
 import base64
 from io import BytesIO
 import re
+from langchain_openai import AzureChatOpenAI
 
 
 action_format_instructions_no_openended = """\
@@ -32,8 +33,19 @@ openai_client = openai.Client(
     api_key=util.load_json("credentials.json")["openai_api_key"]
 )
 
+model='gpt-35-turbo'
+
+chat = AzureChatOpenAI(
+    azure_deployment='gpt-35-turbo',
+    openai_api_version='2024-10-21',
+    temperature=0.2,
+    max_tokens=1024,
+    request_timeout=60
+)
+
 tokens = defaultdict(int)
 def completions(*args, **kwargs):
+    generations = chat.generate()
     ret = openai_client.chat.completions.create(*args, **kwargs)
 
     model = kwargs["model"]
@@ -74,53 +86,53 @@ class OpenAITextAgent(Agent):
             #valid_actions.extend(f"Explain({h})" for h in list(details_dict.keys()))
 
         prompt += f"\n# Observation\nThe following describes the current state of the game:\n{observation.text}\n"
-        if observation.image is not None:
-            if self.openai_model == "gpt-4-1106-preview":
-                self.print("Image observation recieved.")
-                buffered = BytesIO()
-                observation.image.save(buffered, format="JPEG")
-                base64_image = base64.b64encode(buffered.getvalue())
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                },
-                            },
-                        ],
-                    }
-                )
-                prompt = ""
-            else:
-                self.print("Image observation recieved. Using GPT4 to generate text description.")
-                buffered = BytesIO()
-                image.save(buffered, format="JPEG")
-                base64_image = base64.b64encode(buffered.getvalue())
+        # if observation.image is not None:
+        #     if self.openai_model == "gpt-4-1106-preview":
+        #         self.print("Image observation recieved.")
+        #         buffered = BytesIO()
+        #         observation.image.save(buffered, format="JPEG")
+        #         base64_image = base64.b64encode(buffered.getvalue())
+        #         messages.append(
+        #             {
+        #                 "role": "user",
+        #                 "content": [
+        #                     {"type": "text", "text": prompt},
+        #                     {
+        #                         "type": "image",
+        #                         "image_url": {
+        #                             "url": f"data:image/jpeg;base64,{base64_image}"
+        #                         },
+        #                     },
+        #                 ],
+        #             }
+        #         )
+        #         prompt = ""
+        #     else:
+        #         self.print("Image observation recieved. Using GPT4 to generate text description.")
+        #         buffered = BytesIO()
+        #         image.save(buffered, format="JPEG")
+        #         base64_image = base64.b64encode(buffered.getvalue())
 
-                imagedesc = completions(
-                    model="gpt-4-vision-preview",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": prompt
-                                },
-                                {
-                                    "type": "image",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                                },
-                            ],
-                        }
-                    ],
-                ).choices[0].message.content
-                prompt += imagedesc
-                observation.image = None
+        #         imagedesc = completions(
+        #             model="gpt-4-vision-preview",
+        #             messages=[
+        #                 {
+        #                     "role": "user",
+        #                     "content": [
+        #                         {
+        #                             "type": "text",
+        #                             "text": prompt
+        #                         },
+        #                         {
+        #                             "type": "image",
+        #                             "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+        #                         },
+        #                     ],
+        #                 }
+        #             ],
+        #         ).choices[0].message.content
+        #         prompt += imagedesc
+        #         observation.image = None
 
         assert available_actions.predefined != {} or available_actions.openended != {}
         prompt += f"\n# Actions\n"
@@ -153,20 +165,35 @@ class OpenAITextAgent(Agent):
             prompt += "First, let's reason out loud about which action you should take to maximize your probability of winning."
             messages.append({"role": "user", "content": prompt})
 
-            response = (
-                completions(
-                    model=self.openai_model
-                    if observation.image is None
-                    else "gpt-4-vision-preview",
-                    messages=messages,
-                )
-                .choices[0]
-                .message.content
-            )
+            generations = chat.generate([messages])
+            responses = [
+                chat_gen.message.content for chat_gen in generations.generations[0]]
+            response = responses[0]
+
+            # print(f"\nGENERATIONS!!!\n: {generations}\n")
+
+            # response = (
+            #     completions(
+            #         model=self.openai_model
+            #         if observation.image is None
+            #         else "gpt-4-vision-preview",
+            #         messages=messages,
+            #     )
+            #     .choices[0]
+            #     .message.content
+            # )
+
+            print("GPT PROMPT:\n", prompt)
+            print("GPT RESPONSE:\n", response)
+
+            tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
+            tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
+            print("*******************", tokens)
+
             messages.append({"role": "assistant", "content": response})
             prompt = ""
 
-            self.print("GPT reasoned out loud with: " + response)
+            # self.print("GPT reasoned out loud with: " + response)
 
         # Babble and Prune
         elif self.mode == 2:
@@ -174,16 +201,30 @@ class OpenAITextAgent(Agent):
             prompt += str(list(valid_actions))
 
             messages.append({"role": "user", "content": prompt})
-            response = (
-                completions(
-                    model=self.openai_model
-                    if observation.image is None
-                    else "gpt-4-vision-preview",
-                    messages=messages,
-                )
-                .choices[0]
-                .message.content
-            )
+
+            generations = chat.generate([messages])
+            responses = [
+                chat_gen.message.content for chat_gen in generations.generations[0]]
+            response = responses[0]
+
+            # response = (
+            #     completions(
+            #         model=self.openai_model
+            #         if observation.image is None
+            #         else "gpt-4-vision-preview",
+            #         messages=messages,
+            #     )
+            #     .choices[0]
+            #     .message.content
+            # )
+
+            print("GPT PROMPT:\n", prompt)
+            print("GPT RESPONSE:\n", response)
+
+            tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
+            tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
+            print("*******************", tokens)
+            
             messages.append({"role": "assistant", "content": response})
             prompt = ""
 
@@ -197,19 +238,35 @@ class OpenAITextAgent(Agent):
 
         result = None
         for _ in range(self.max_retries):
-            response = (
-                completions(
-                    model=self.openai_model
-                    if observation.image is None
-                    else "gpt-4-vision-preview",
-                    response_format={"type": "json_object"},
-                    messages=messages,
-                )
-                .choices[0]
-                .message.content
-            )
+            generations = chat.generate([messages])
+
+            # print("GENERATIONS!!!:\n", generations)
+
+            responses = [
+                chat_gen.message.content for chat_gen in generations.generations[0]]
+            response = responses[0]
+
+            # response = (
+            #     completions(
+            #         model=self.openai_model
+            #         if observation.image is None
+            #         else "gpt-4-vision-preview",
+            #         response_format={"type": "json_object"},
+            #         messages=messages,
+            #     )
+            #     .choices[0]
+            #     .message.content
+            # )
+
+            print("GPT PROMPT:\n", prompt)
+            print("GPT RESPONSE:\n", response)
+
+            tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
+            tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
+            print("*******************", tokens)
+            
             messages.append({"role": "assistant", "content": response})
-            self.print("GPT responded with", response)
+            # print("GPT responded with", response)
 
             try:
                 action = ast.literal_eval(response.strip())
@@ -272,6 +329,23 @@ class OpenAITextAgent(Agent):
             openended_response=result.get("openended_response"),
         )
 
+@dataclass
+class GPT3Azure(OpenAITextAgent):
+    openai_model: str = "gpt-35-turbo"
+    agent_type_id: str = "gpt-3-azure"
+    mode: int = 0
+
+@dataclass
+class GPT3AzureCoT(OpenAITextAgent):
+    openai_model: str = "gpt-35-turbo"
+    agent_type_id: str = "gpt-3-azure-cot"
+    mode: int = 1
+
+@dataclass
+class GPT3AzureBaP(OpenAITextAgent):
+    openai_model: str = "gpt-35-turbo"
+    agent_type_id: str = "gpt-3-azure-bap"
+    mode: int = 2
 
 @dataclass
 class GPT3(OpenAITextAgent):

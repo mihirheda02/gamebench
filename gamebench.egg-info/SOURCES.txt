@@ -1,8 +1,9 @@
+LICENSE.txt
 README.md
 setup.py
 agents/gpt.py
+agents/human_agent.py
 agents/random_agent.py
-agents/rap.py
 api/classes.py
 api/play_game.py
 api/util.py
@@ -11,4 +12,5 @@ gamebench.egg-info/SOURCES.txt
 gamebench.egg-info/dependency_links.txt
 gamebench.egg-info/requires.txt
 gamebench.egg-info/top_level.txt
+games/sea_battle.py
 games/tic_tac_toe.py
