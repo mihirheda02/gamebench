@@ -71,7 +71,7 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
         player_2_total += player_2_score
 
         if save_results:
-            matches = util.load_json(f"matches.json")
+            matches = []
             matches.append(
                 {
                     "game": game_class.id,
@@ -79,7 +79,7 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
                     agent_2_id: player_2_score,
                 }
             )
-            util.save_json(matches, "matches.json")
+            util.save_json(matches, f"runs/gamebench/{game_class.id}/{agent_1_id}_{agent_2_id}.json")
             # util.save_json(matches, f"{game_class.id}.{agent_1_id}.{agent_2_id}.json")
             print("Saved match information")
 
@@ -101,5 +101,6 @@ def play_game(agent_1_path, agent_2_path, game_path, num_matches = 1, save_resul
 if __name__ == "__main__":
     os.environ["AZURE_OPENAI_ENDPOINT"] = "<api_endpoint>"
     os.environ["AZURE_OPENAI_API_KEY"] = "<api_key>"
+
     fire.Fire(play_game)
 

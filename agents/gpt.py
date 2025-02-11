@@ -183,12 +183,12 @@ class OpenAITextAgent(Agent):
             #     .message.content
             # )
 
-            print("GPT PROMPT:\n", prompt)
-            print("GPT RESPONSE:\n", response)
+            print(f"\n\n {self.agent_type_id} PROMPT:\n", prompt)
+            print(f"\n\n {self.agent_type_id}'s RESPONSE:\n", response)
 
             tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
             tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
-            print("*******************", tokens)
+            # print("*******************", tokens)
 
             messages.append({"role": "assistant", "content": response})
             prompt = ""
@@ -218,17 +218,17 @@ class OpenAITextAgent(Agent):
             #     .message.content
             # )
 
-            print("GPT PROMPT:\n", prompt)
-            print("GPT RESPONSE:\n", response)
+            print(f"\n\n {self.agent_type_id} PROMPT:\n", prompt)
+            print(f"\n\n {self.agent_type_id}'s RESPONSE:\n", response)
 
             tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
             tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
-            print("*******************", tokens)
+            # print("*******************", tokens)
             
             messages.append({"role": "assistant", "content": response})
             prompt = ""
 
-            self.print(f"GPT listed the following actions as possibilities: {response}")
+            # print(f"\n\n {self.agent_type_id} listed the following actions as possibilities: {response}")
 
         prompt += "\nTo summarize, if you choose a predefined action, you must return json with an 'action' key which contains one of the following valid actions:\n"
         prompt += str(list(available_actions.predefined))
@@ -258,12 +258,12 @@ class OpenAITextAgent(Agent):
             #     .message.content
             # )
 
-            print("GPT PROMPT:\n", prompt)
-            print("GPT RESPONSE:\n", response)
+            print(f"\n\n {self.agent_type_id} PROMPT:\n", prompt)
+            print(f"\n\n {self.agent_type_id}'s RESPONSE:\n", response)
 
             tokens[f"{model}_input"] += generations.llm_output['token_usage']['prompt_tokens']
             tokens[f"{model}_output"] += generations.llm_output['token_usage']['completion_tokens']
-            print("*******************", tokens)
+            # print("*******************", tokens)
             
             messages.append({"role": "assistant", "content": response})
             # print("GPT responded with", response)
@@ -272,16 +272,14 @@ class OpenAITextAgent(Agent):
                 action = ast.literal_eval(response.strip())
                 action["action"]
             except:
-                self.print("GPT returned invalid JSON")
+                print(f"\n\n{self.agent_type_id} returned invalid JSON")
                 continue
 
             if (
                 action["action"] in available_actions.openended
                 and "openended_response" not in action
             ):
-                self.print(
-                    "GPT chose openended action but didn't include response", action
-                )
+                print(f"\n\n{self.agent_type_id} chose openended action but didn't include response", action)
                 error_message = "You chose an openended action, and so your json must have an 'openended_response' key."
                 messages.append({"role": "user", "content": error_message})
                 continue
@@ -289,7 +287,7 @@ class OpenAITextAgent(Agent):
             try:
                 explain = re.findall(r"Explain\((H\d+)\)", action["action"])
                 if len(explain):
-                    self.print("GPT is asking for rules explanation.")
+                    print(f"\n\n{self.agent_type_id} is asking for rules explanation.")
                     rule = details_dict[explain[0]]
                     desc = rules.additional_details[rule]
                     messages.append({"role": "user", "content": desc})
@@ -297,30 +295,30 @@ class OpenAITextAgent(Agent):
 
                 explain = re.findall(r"Explain\((.+)\)", action["action"])
                 if len(explain):
-                    self.print("GPT is asking for action explanation.")
+                    print(f"\n\n{self.agent_type_id} is asking for action explanation.")
                     desc = available_actions.predefined.get(explain[0], "") + available_actions.openended.get(explain[0], "")
                     messages.append({"role": "user", "content": desc})
                     continue
             except:
-                self.print("GPT tried asking for an expalanation but failed.")
+                print(f"\n\n{self.agent_type_id} tried asking for an expalanation but failed.")
                 error_message = "This is an invalid Explain action."
                 messages.append({"role": "user", "content": error_message})
                 continue
 
             if action["action"] in valid_actions:
-                self.print("GPT chose valid action", action)
+                print(f"\n\n{self.agent_type_id} chose valid action", action)
                 result = action
                 break
 
-            self.print("GPT returned invalid action", action)
+            print(f"\n\n{self.agent_type_id} returned invalid action", action)
             error_message = f"{action['action']} is not one of the valid actions. "
             error_message += "As a reminder, the valid actions are as follows:\n"
             error_message += f"{str(list(valid_actions))}\n"
             error_message += "Please return a json with the key 'action' with the action you choose and (optionally) the key 'openended_response' if you select openended response action."
             messages.append({"role": "user", "content": error_message})
         if result == None:
-            self.print(
-                f"WARNING: GPT returned too many invalid actions after {self.max_retries} tries"
+            print(
+                f"\n\nWARNING: {self.agent_type_id} returned too many invalid actions after {self.max_retries} tries"
             )
             return Action(action_id=None)
 
